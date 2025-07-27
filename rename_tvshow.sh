@@ -13,12 +13,17 @@ rename_tv_file() {
   local base="${file%.*}"
 
   # Remove resolution patterns like .1080p., -720p-, _480_, etc. (case insensitive)
-  # Pattern: separator + 3 or 4 digits + optional 'p' + separator or end of string
   base=$(echo "$base" | sed -E 's/([._-])([0-9]{3,4}p?)([._-]|$)/\1\3/Ig')
 
   # Replace dots, spaces, and dashes with underscores
   local cleaned="$base"
   cleaned=$(echo "$cleaned" | sed -E 's/[ .-]+/_/g')
+
+  # Collapse multiple underscores into one
+  cleaned=$(echo "$cleaned" | sed -E 's/_+/_/g')
+
+  # Remove leading or trailing underscores if any
+  cleaned=$(echo "$cleaned" | sed -E 's/^_+|_+$//g')
 
   # Convert to lowercase
   cleaned=$(echo "$cleaned" | tr '[:upper:]' '[:lower:]')
