@@ -14,29 +14,38 @@ if [[ ! -f "$file" ]]; then
   exit 1
 fi
 
-# Extract extension
-extension="${file##*.}"
+# Get extension and filename without path
+basename=$(basename "$file")
+extension="${basename##*.}"
+filename="${basename%.*}"
 
-# Step 1: Replace spaces and periods with underscores
-cleaned="${file//[. ]/_}"
+# Convert to lowercase and replace spaces/periods with underscores
+cleaned=$(echo "$filename" | tr '[:upper:]' '[:lower:]' | sed 's/[ .]/_/g')
 
-# Step 2: Convert to lowercase
-cleaned=$(echo "$cleaned" | tr '[:upper:]' '[:lower:]')
+# Remove resolution-like tokens (1080p, 720p, etc.) early
+cleaned=$(echo "$cleaned" | sed -E 's/_[0-9]{3,4}p(_|$)/_/g')
 
-# Step 3: Extract title and 4-digit year, skip resolutions
-if [[ $cleaned =~ ^(.+?)_([12][0-9]{3})[^0-9] ]]; then
+# Remove consecutive and trailing underscores
+cleaned=$(echo "$cleaned" | sed -E 's/_+/_/g' | sed -E 's/^_|_$//g')
+
+# Try to extract title and a 4-digit year not part of resolution
+if [[ $cleaned =~ ^(.+)_([12][0-9]{3})$ ]]; then
   title="${BASH_REMATCH[1]}"
   year="${BASH_REMATCH[2]}"
-  newname="${title}_${year}.${extension}"
-
-  # Rename if different
-  if [[ "$file" != "$newname" ]]; then
-    echo "Renaming: $file → $newname"
-    mv -i "$file" "$newname"
-  else
-    echo "Filename is already clean: $file"
-  fi
+elif [[ $cleaned =~ ^(.+)_([12][0-9]{3})_ ]]; then
+  title="${BASH_REMATCH[1]}"
+  year="${BASH_REMATCH[2]}"
 else
   echo "Could not extract valid title/year from: $file"
+  exit 1
 fi
 
+newname="${title}_${year}.${extension}"
+
+# Rename if different
+if [[ "$basename" != "$newname" ]]; then
+  echo "Renaming: $basename → $newname"
+  mv -i "$file" "$(dirname "$file")/$newname"
+else
+  echo "Filename is already clean: $file"
+fi
